@@ -19,6 +19,16 @@ async function getSpotifyAccessToken(): Promise<string> {
   const clientId = process.env.SPOTIFY_CLIENT_ID;
   const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
 
+  console.log(
+    "Spotify Client ID exists:",
+    Boolean(clientId)
+  );
+
+  console.log(
+    "Spotify Client Secret exists:",
+    Boolean(clientSecret)
+  );
+
   if (!clientId || !clientSecret) {
     throw new Error(
       "Spotify environment variables are missing."
