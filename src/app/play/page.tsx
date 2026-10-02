@@ -1,6 +1,8 @@
+
 "use client";
 
 import {
+  Suspense,
   useEffect,
   useState,
 } from "react";
@@ -9,13 +11,9 @@ import { useSearchParams } from "next/navigation";
 
 import GameBoard from "@/components/GameBoard";
 
-import type {
-  GameRound,
-} from "@/types/game";
+import type { GameRound } from "@/types/game";
 
-
-interface StartGameResponse
-  extends GameRound {
+interface StartGameResponse extends GameRound {
   artist: {
     id: string;
     name: string;
@@ -23,89 +21,63 @@ interface StartGameResponse
   };
 }
 
+function PlayContent() {
+  const searchParams = useSearchParams();
 
-export default function PlayPage() {
-  const searchParams =
-    useSearchParams();
-
-  const artistId =
-    searchParams.get(
-      "artist"
-    );
+  const artistId = searchParams.get("artist");
 
   const [game, setGame] =
-    useState<StartGameResponse | null>(
-      null
-    );
+    useState<StartGameResponse | null>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] =
-    useState("");
-
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!artistId) {
-      setError(
-        "No artist selected."
-      );
-
+      setError("No artist selected.");
       setLoading(false);
-
       return;
     }
-
 
     async function startGame() {
       try {
         // First ensure tracks exist
-        const tracksResponse =
-          await fetch(
-            `/api/artists/${artistId}/tracks`
-          );
+        const tracksResponse = await fetch(
+          `/api/artists/${artistId}/tracks`
+        );
 
-        const tracksData =
-          await tracksResponse.json();
+        const tracksData = await tracksResponse.json();
 
-        if (
-          !tracksResponse.ok
-        ) {
+        if (!tracksResponse.ok) {
           throw new Error(
-            tracksData.error
+            tracksData.error || "Failed to load tracks."
           );
         }
 
-
         // Start game
-        const response =
-          await fetch(
-            "/api/game/start",
-            {
-              method: "POST",
+        const response = await fetch(
+          "/api/game/start",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              artistId,
+            }),
+          }
+        );
 
-              headers: {
-                "Content-Type":
-                  "application/json",
-              },
-
-              body: JSON.stringify({
-                artistId,
-              }),
-            }
-          );
-
-        const data =
-          await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
           throw new Error(
-            data.error
+            data.error || "Failed to start game."
           );
         }
 
         setGame(data);
-
       } catch (error) {
         setError(
           error instanceof Error
@@ -117,22 +89,16 @@ export default function PlayPage() {
       }
     }
 
-
     startGame();
-
   }, [artistId]);
-
 
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p>
-          Loading game...
-        </p>
+        <p>Loading game...</p>
       </main>
     );
   }
-
 
   if (error) {
     return (
@@ -150,35 +116,37 @@ export default function PlayPage() {
     );
   }
 
-
   if (!game) {
     return null;
   }
-
 
   return (
     <main className="min-h-screen px-6 py-12">
       <GameBoard
         initialRound={{
-          roundId:
-            game.roundId,
-
-          sessionId:
-            game.sessionId,
-
-          questionNumber:
-            game.questionNumber,
-
-          audioUrl:
-            game.audioUrl,
-
-          options:
-            game.options,
+          roundId: game.roundId,
+          sessionId: game.sessionId,
+          questionNumber: game.questionNumber,
+          audioUrl: game.audioUrl,
+          options: game.options,
         }}
-        artistName={
-          game.artist.name
-        }
+        artistName={game.artist.name}
       />
     </main>
   );
 }
+
+export default function PlayPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center">
+          <p>Loading game...</p>
+        </main>
+      }
+    >
+      <PlayContent />
+    </Suspense>
+  );
+}
+
