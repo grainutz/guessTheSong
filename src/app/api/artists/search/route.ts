@@ -20,8 +20,7 @@ export async function GET(
     if (!query) {
       return NextResponse.json(
         {
-          error:
-            "Search query is required.",
+          error: "Search query is required.",
         },
         {
           status: 400,
@@ -41,8 +40,19 @@ export async function GET(
       );
     }
 
+    console.log(
+      "Searching Spotify for:",
+      query
+    );
+
     const artists =
       await searchSpotifyArtists(query);
+
+    console.log(
+      "Spotify returned:",
+      artists.length,
+      "artists"
+    );
 
     const supabase =
       await createClient();
@@ -60,12 +70,22 @@ export async function GET(
     );
 
     if (rows.length > 0) {
-      await supabase
-        .from("artists")
-        .upsert(rows, {
-          onConflict:
-            "spotify_artist_id",
-        });
+      const { error } =
+        await supabase
+          .from("artists")
+          .upsert(rows, {
+            onConflict:
+              "spotify_artist_id",
+          });
+
+      if (error) {
+        console.error(
+          "Supabase upsert error:",
+          error
+        );
+
+        throw error;
+      }
     }
 
     const { data, error } =
@@ -81,6 +101,11 @@ export async function GET(
         );
 
     if (error) {
+      console.error(
+        "Supabase select error:",
+        error
+      );
+
       throw error;
     }
 
@@ -89,12 +114,17 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error(error);
+    console.error(
+      "ARTIST SEARCH ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
         error:
-          "Failed to search artists.",
+          error instanceof Error
+            ? error.message
+            : String(error),
       },
       {
         status: 500,
